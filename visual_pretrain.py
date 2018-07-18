@@ -1,7 +1,7 @@
 import tensorflow as tf
-from models import Model3
-from metrics import char_edit_dist, word_edit_dist
-import os
+from models import VisualFeaturePretrainModel
+# from metrics import char_edit_dist, word_edit_dist
+# import os
 
 # os.environ['CUDA_VISIBLE_DEVICES'] = '4'
 
@@ -51,14 +51,12 @@ options = {
     'residual_encoder': True,
     'bidir_encoder': False,
 
-    'encoder_state_as_decoder_init': False,  # bool. if True encoder state is used for decoder init state, otherwise
-    # zero state is used
     'decoder_num_layers': 3,  # number of hidden layers in decoder lstm
     'decoder_num_hidden': 512,  # number of hidden units in decoder lstm
-    'decoder_output_num_units': 128,  # number of units in MLP hidden layer from attention cell
+    'encoder_state_as_decoder_init' : True,  # bool. if True encoder state is used for decoder init state, otherwise
+    # zero state is used
     'residual_decoder': False,
-    'attention_num_units': 100,
-    'attention_layer_size': 600,  # number of hidden units in attention layer,
+    'attention_layer_size': None,  # number of hidden units in attention layer,
     # if None, cell output and context vector are concatenated
     'norm_attention_layer': True,
     'reset_global_step': False,
@@ -95,7 +93,7 @@ options = {
 
 # if __name__ == "__main__":
 
-model = Model3(options)
+model = VisualFeaturePretrainModel(options)
 # gv = tf.global_variables()
 # tv = tf.trainable_variables()
 # ntv = [v for v in gv if v not in tv]

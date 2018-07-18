@@ -362,7 +362,7 @@ class ResNet(object):
   def __init__(self, resnet_size, bottleneck, num_classes, num_filters,
                kernel_size, conv_stride, first_pool_size, first_pool_stride,
                second_pool_size, second_pool_stride, block_sizes, block_strides,
-               final_size, version=DEFAULT_VERSION, data_format=None):
+               final_size, version=DEFAULT_VERSION, data_format=None, frontend_3d=False):
     """Creates a model for classifying an image.
     Args:
       resnet_size: A single integer for the size of the ResNet model.
@@ -428,6 +428,8 @@ class ResNet(object):
     self.block_strides = block_strides
     self.final_size = final_size
 
+    self.frontend_3d = frontend_3d
+
   def __call__(self, inputs, training):
     """Add operations to classify a batch of input images.
     Args:
@@ -445,19 +447,21 @@ class ResNet(object):
       inputs = tf.transpose(inputs, [0, 3, 1, 2])
     print("Training :  %r" % training)
     print(inputs)
-    inputs = conv2d_fixed_padding(
-        inputs=inputs, filters=self.num_filters, kernel_size=self.kernel_size,
-        strides=self.conv_stride, data_format=self.data_format)
-    inputs = tf.identity(inputs, 'initial_conv')
-    print(inputs)
 
-    if self.first_pool_size:
-      inputs = tf.layers.max_pooling2d(
-          inputs=inputs, pool_size=self.first_pool_size,
-          strides=self.first_pool_stride, padding='SAME',
-          data_format=self.data_format)
-      inputs = tf.identity(inputs, 'initial_max_pool')
-      print(inputs)
+    if not self.frontend_3d:
+        inputs = conv2d_fixed_padding(
+            inputs=inputs, filters=self.num_filters, kernel_size=self.kernel_size,
+            strides=self.conv_stride, data_format=self.data_format)
+        inputs = tf.identity(inputs, 'initial_conv')
+        print(inputs)
+
+        if self.first_pool_size:
+          inputs = tf.layers.max_pooling2d(
+              inputs=inputs, pool_size=self.first_pool_size,
+              strides=self.first_pool_stride, padding='SAME',
+              data_format=self.data_format)
+          inputs = tf.identity(inputs, 'initial_max_pool')
+          print(inputs)
 
     for i, num_blocks in enumerate(self.block_sizes):
       num_filters = self.num_filters * (2**i)
@@ -480,8 +484,10 @@ class ResNet(object):
     inputs = tf.identity(inputs, 'final_reduce_mean')
 
     inputs = tf.reshape(inputs, [-1, self.final_size])
-    inputs = tf.layers.dense(inputs=inputs, units=self.num_classes)
-    inputs = tf.identity(inputs, 'final_dense')
+
+    if self.num_classes:
+        inputs = tf.layers.dense(inputs=inputs, units=self.num_classes)
+        inputs = tf.identity(inputs, 'final_dense')
 
     return inputs
 

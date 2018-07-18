@@ -142,6 +142,10 @@ def get_batch(paths, options):
                                  lambda: tf.map_fn(tf.identity, encoder_inputs))
     encoder_inputs = normalize(encoder_inputs)
 
+    # reverse time dimension in input frames. better performance when a unidirectional encoder is used
+    if options['reverse_time']:
+        encoder_inputs = tf.reverse(encoder_inputs, axis=[1])
+
     # slicw video to time_window_len consecutive frames with stride 1
     if time_window_len != 1:
         # pad encoder_inputs s.t. each frame is in the same number of slices
