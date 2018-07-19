@@ -1,19 +1,10 @@
 import tensorflow as tf
 from models import VisualFeaturePretrainModel
+from tf_utils import set_gpu, start_interactive_session
 # from metrics import char_edit_dist, word_edit_dist
 # import os
 
-# os.environ['CUDA_VISIBLE_DEVICES'] = '4'
-
-def start_interactive_session():
-    sess = tf.InteractiveSession()
-    # with tf.Session() as sess:
-    # sess = tf.Session()
-    sess.run(tf.global_variables_initializer())
-    sess.run(tf.local_variables_initializer())  # what are local vars?
-    coord = tf.train.Coordinator()
-    threads = tf.train.start_queue_runners(sess=sess, coord=coord)
-    return sess
+set_gpu(0)
 
 options = {
 
