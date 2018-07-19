@@ -241,8 +241,8 @@ def check_inference_options(options):
 def get_data_paths(options):
     if options['dataset'] not in ['LRW', 'LRS2']:
         raise ValueError("options['dataset'] must either be 'LRW' or 'LRS2', not %s" % options['dataset'])
-    if options['dataset'] == "LRW":  # "/Paths/" +  # correct when running on real dataset
-        data_info = pd.read_csv(options['data_root_dir'] + "/" + options['data_dir'] + "_data_info_tfrecords.csv",
+    if options['dataset'] == "LRW":  #   # correct when running on real dataset
+        data_info = pd.read_csv(options['data_root_dir'] + "/Paths/" + options['data_dir'] + "_data_info_tfrecords.csv",
                                 dtype={'person_id': str, 'video_id': str})  # .sample(frac=1)
         print("Total number of train data: %d" % data_info.shape[0])
         return data_info['path'].tolist()

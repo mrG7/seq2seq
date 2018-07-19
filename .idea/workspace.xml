@@ -4,9 +4,6 @@
     <list default="true" id="a07ba11a-8ff1-4272-80f6-707dbb154bd5" name="Default" comment="">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/data_utils.py" afterPath="$PROJECT_DIR$/data_utils.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/models.py" afterPath="$PROJECT_DIR$/models.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/seq2seq_m3_train.py" afterPath="$PROJECT_DIR$/seq2seq_m3_train.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/visual_pretrain.py" afterPath="$PROJECT_DIR$/visual_pretrain.py" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
@@ -46,8 +43,8 @@
           <file leaf-file-name="data_utils.py" pinned="false" current-in-tab="true">
             <entry file="file://$PROJECT_DIR$/data_utils.py">
               <provider selected="true" editor-type-id="text-editor">
-                <state relative-caret-position="594">
-                  <caret line="81" column="83" lean-forward="true" selection-start-line="81" selection-start-column="83" selection-end-line="81" selection-end-column="83" />
+                <state relative-caret-position="198">
+                  <caret line="230" column="20" lean-forward="true" selection-start-line="230" selection-start-column="20" selection-end-line="230" selection-end-column="20" />
                   <folding>
                     <element signature="e#0#38#0" expanded="true" />
                   </folding>
@@ -158,7 +155,7 @@
       </list>
     </option>
   </component>
-  <component name="ProjectFrameBounds" extendedState="7">
+  <component name="ProjectFrameBounds" extendedState="6">
     <option name="x" value="64" />
     <option name="y" value="-4" />
     <option name="width" value="1250" />
@@ -231,8 +228,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="64" y="-4" width="2497" height="1445" extended-state="7" />
-    <editor active="true" />
+    <frame x="64" y="-4" width="2497" height="1445" extended-state="6" />
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.013474888" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
@@ -496,8 +492,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/data_utils.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="594">
-          <caret line="81" column="83" lean-forward="true" selection-start-line="81" selection-start-column="83" selection-end-line="81" selection-end-column="83" />
+        <state relative-caret-position="198">
+          <caret line="230" column="20" lean-forward="true" selection-start-line="230" selection-start-column="20" selection-end-line="230" selection-end-column="20" />
           <folding>
             <element signature="e#0#38#0" expanded="true" />
           </folding>
