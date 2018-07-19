@@ -226,6 +226,8 @@ def get_lrs_batch(paths, options):
 def get_data_paths(options):
     data_info = pd.read_csv(options['data_root_dir'] + "/Paths/" + options['data_dir'] + "_data_info_tfrecords.csv",
                             dtype={'person_id':str, 'video_id':str})#.sample(frac=1)
+    if 'path' in data_info.columns:
+        return data_info['path'].tolist()
     print("Total number of train data: %d" % data_info.shape[0])
     data_info['root_dir'] = options['data_root_dir']
     data_info['path'] = data_info['root_dir'] + "/Data/" + options['data_dir'] + "/" \
