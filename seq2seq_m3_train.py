@@ -74,7 +74,7 @@ options = {
     'learn_rate': 0.0005,  # initial learn rate corresponing top global step 0, or max lr for Adam
     'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
-    'num_decay_steps': 200,
+    'num_decay_steps': 0.05,  # None: decay once per epoch, float: multiply that with num steps per epoch to get
     'decay_rate': 0.95,
 
     'restore': False,  # boolean. restore model from disk

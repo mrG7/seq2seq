@@ -49,6 +49,16 @@ class BasicModel:
     def predict(self, sess, num_steps=None):
         pass
 
+    @property
+    def learn_rate_decay_steps(self):
+        if self.options['num_decay_steps'] is None:  # decay every epoch
+            num_decay_steps = self.number_of_steps_per_epoch
+        elif type(self.options['num_decay_steps']) is float:   # decay at a proportion to steps per epoch
+            num_decay_steps = int(self.options['num_decay_steps'] * self.number_of_steps_per_epoch)
+        else:  # explicitly specify decay steps
+            num_decay_steps = self.options['num_decay_steps']
+        return num_decay_steps
+
     def init_global_step(self, value=0):
         print("initializing global step at %d" % value)
         self.global_step = tf.Variable(value, trainable=False)
@@ -93,11 +103,7 @@ class VisualFeaturePretrainModel(BasicModel):
         if self.options['mode'] == 'train':
             self.train_era_step = self.options['train_era_step']
             self.encoder_inputs, self.target_labels = get_training_data_batch(self.data_paths, self.options)
-            if self.options['num_decay_steps'] is not None:
-                self.num_decay_steps = self.options['num_decay_steps']
-            else:
-                self.num_decay_steps = self.number_of_steps_per_epoch
-
+            self.num_decay_steps = self.learn_rate_decay_steps
             # if self.options['save_summaries']:
             #     tf.summary.image('sample_image', self.encoder_inputs[0, :, :, :, -1:], max_outputs=50)
 
@@ -253,11 +259,11 @@ class Model3(BasicModel):
             self.encoder_inputs, self.target_labels, self.decoder_inputs, self.encoder_inputs_lengths, \
             self.target_labels_lengths, self.decoder_inputs_lengths, self.max_input_len = \
                 get_training_data_batch(self.data_paths, self.options)
-            if self.options['num_decay_steps'] is not None:
-                self.num_decay_steps = self.options['num_decay_steps']
-            else:
-                self.num_decay_steps = self.number_of_steps_per_epoch
-
+            # if self.options['num_decay_steps'] is not None:
+            #     self.num_decay_steps = self.options['num_decay_steps']
+            # else:
+            #     self.num_decay_steps = self.number_of_steps_per_epoch
+            self.num_decay_steps = self.learn_rate_decay_steps
             # if self.options['save_summaries']:
             #     tf.summary.image('sample_image', self.encoder_inputs[0, :, :, :, -1:], max_outputs=50)
 

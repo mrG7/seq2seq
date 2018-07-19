@@ -69,10 +69,10 @@ options = {
     'num_epochs': 10,  # number of epochs over dataset for training
     'start_epoch': 1,  # epoch to start
     'train_era_step': 1,  # start train step during current era
-    'learn_rate': 0.001,  # initial learn rate corresponing top global step 0, or max lr for Adam
+    'learn_rate': 0.005,  # initial learn rate corresponing top global step 0, or max lr for Adam
     # 'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
-    'num_decay_steps': 200,
+    'num_decay_steps': None,
     'decay_rate': 0.95,
 
     'restore': False,  # boolean. restore model from disk
