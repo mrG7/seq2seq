@@ -18,7 +18,7 @@ def start_interactive_session():
 options = {
 
     'mode': "train",  # "train" or "test
-
+    'dataset': "LRS2",  # name of the dataset, either "LRW" or "LRS2"
     'data_root_dir': "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/lipreading/Data/LRS/lrs_v1",
     #    "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/Data/LRS/lrs_v0",  # root directory of the
     # data. contains Data, Paths, Logs
@@ -71,7 +71,7 @@ options = {
     'num_epochs': 10,  # number of epochs over dataset for training
     'start_epoch': 1,  # epoch to start
     'train_era_step': 1,  # start train step during current era
-    'learn_rate': 0.001,  # initial learn rate corresponing top global step 0, or max lr for Adam
+    'learn_rate': 0.0005,  # initial learn rate corresponing top global step 0, or max lr for Adam
     'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
     'num_decay_steps': 200,

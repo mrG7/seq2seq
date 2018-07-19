@@ -4,7 +4,7 @@ from __future__ import print_function
 import tensorflow as tf
 from model_utils import frontend_3D, backend_resnet, conv_backend, stacked_lstm, MultiLayerOutput  # blstm_encoder, lstm_encoder
 from metrics import char_accuracy, flatten_list
-from data_utils import get_data_paths, get_number_of_steps, get_lrs_training_data_batch, get_lrs_inference_data_batch, get_lrw_training_data_batch
+from data_utils import get_data_paths, get_number_of_steps, get_training_data_batch, get_inference_data_batch
 from tqdm import tqdm
 from video2tfrecord3 import decrypt
 from tensorflow.contrib.rnn import LSTMStateTuple
@@ -92,7 +92,7 @@ class VisualFeaturePretrainModel(BasicModel):
 
         if self.options['mode'] == 'train':
             self.train_era_step = self.options['train_era_step']
-            self.encoder_inputs, self.target_labels = get_lrw_training_data_batch(self.data_paths, self.options)
+            self.encoder_inputs, self.target_labels = get_training_data_batch(self.data_paths, self.options)
             if self.options['num_decay_steps'] is not None:
                 self.num_decay_steps = self.options['num_decay_steps']
             else:
@@ -104,7 +104,7 @@ class VisualFeaturePretrainModel(BasicModel):
             self.build_train_graph()
 
         elif self.options['mode'] == 'test':
-            self.encoder_inputs, self.target_labels = get_lrw_inference_data_batch(self.data_paths, self.options)
+            self.encoder_inputs, self.target_labels = get_inference_data_batch(self.data_paths, self.options)
             # self.max_decoding_steps = tf.to_int32(
             #     tf.round(self.options['max_out_len_multiplier'] * tf.to_float(self.max_input_len)))
             self.build_inference_graph()
@@ -156,7 +156,7 @@ class VisualFeaturePretrainModel(BasicModel):
             self.train_loss = tf.reduce_mean(
                 tf.losses.softmax_cross_entropy(self.target_labels, self.logits))
             correct_prediction = tf.equal(tf.argmax(self.logits, 1),
-                                          tf.argmax(self.train_labels, 1))
+                                          tf.argmax(self.target_labels, 1))
             self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             if self.options['save_summaries']:
                 tf.summary.scalar('loss', self.train_loss)

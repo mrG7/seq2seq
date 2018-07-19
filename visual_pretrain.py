@@ -18,25 +18,25 @@ def start_interactive_session():
 options = {
 
     'mode': "train",  # "train" or "test
-
-    'data_root_dir': "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/lipreading/Data/LRS/lrs_v1",
+    'dataset': "LRW",
+    'data_root_dir': "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/lipreading/Data/LRW/LRW_test",
     #    "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/Data/LRS/lrs_v0",  # root directory of the
     # data. contains Data, Paths, Logs
-    'data_dir': "example",  # data paths file is in ~/Paths, named <data_dir> + "_data_info_tfrecords.csv"
+    'data_dir': "train",  # data paths file is in ~/Paths, named <data_dir> + "_data_info_tfrecords.csv"
 
     'batch_size': 1,   # number of examples in queue either for training or inference
     'frame_size': 118,  # spatial resolution of frames saved tfrecords files
     'crop_size': 112,  # spatial resolution of inputs to model
     'random_crop': True,  # boolean. if True a random elif False a center crop_size window is cropped
     'num_channels': 1,  # number of channels of tfrecords files
-    'time_window_len': 1,  # number of consecutive frames concatenated as channels passed as encoder_inputs
+    # 'time_window_len': 1,  # number of consecutive frames concatenated as channels passed as encoder_inputs
 
-    'num_classes': 29,  # number of output classes 29 = |a-z, " ", <sos>, <eos>|
-    'max_out_len_multiplier': 1.0,  # max_out_len = max_out_len_multiplier * max_in_len
+    'num_classes': 500,  # number of output classes 29 = |a-z, " ", <sos>, <eos>|
+    # 'max_out_len_multiplier': 1.0,  # max_out_len = max_out_len_multiplier * max_in_len
 
     'horizontal_flip': True,  # data augmentation. flip horizontally with p=0.5
     'shuffle': True,  # shuffle data paths before queue
-    'reverse_time': True,  # return input data in reverse time format
+    # 'reverse_time': True,  # return input data in reverse time format
     # (useful when unidir encoder or no attention mechanism is used)
 
     'frontend_3d': True,
@@ -45,32 +45,32 @@ options = {
     # match desired feature size
     'res_features_keep_prob': 1.0,  # prob of keeping (not dropping) resnet features before encoder
 
-    'encoder_num_layers': 3,  # number of hidden layers in encoder lstm
-    'encoder_num_hidden': 512,  # number of hidden units in encoder lstm
-    'encoder_dropout_keep_prob' : 1.0,  # probability of keeping neuron
-    'residual_encoder': True,
-    'bidir_encoder': False,
-
-    'decoder_num_layers': 3,  # number of hidden layers in decoder lstm
-    'decoder_num_hidden': 512,  # number of hidden units in decoder lstm
-    'encoder_state_as_decoder_init' : True,  # bool. if True encoder state is used for decoder init state, otherwise
+    # 'encoder_num_layers': 3,  # number of hidden layers in encoder lstm
+    # 'encoder_num_hidden': 512,  # number of hidden units in encoder lstm
+    # 'encoder_dropout_keep_prob' : 1.0,  # probability of keeping neuron
+    # 'residual_encoder': True,
+    # 'bidir_encoder': False,
+    #
+    # 'decoder_num_layers': 3,  # number of hidden layers in decoder lstm
+    # 'decoder_num_hidden': 512,  # number of hidden units in decoder lstm
+    # 'encoder_state_as_decoder_init' : True,  # bool. if True encoder state is used for decoder init state, otherwise
     # zero state is used
-    'residual_decoder': False,
-    'attention_layer_size': None,  # number of hidden units in attention layer,
+    # 'residual_decoder': False,
+    # 'attention_layer_size': None,  # number of hidden units in attention layer,
     # if None, cell output and context vector are concatenated
-    'norm_attention_layer': True,
+    # 'norm_attention_layer': True,
     'reset_global_step': False,
     # 'num_hidden_out': 128,  # number of hidden units in output fcn
 
-    'beam_width': 20,  # number of best solutions used in beam decoder
-    'max_in_len': None,  # maximum number of frames in input videos
-    'max_out_len': None,  # maximum number of characters in output text
-
+    # 'beam_width': 20,  # number of best solutions used in beam decoder
+    # 'max_in_len': None,  # maximum number of frames in input videos
+    # 'max_out_len': None,  # maximum number of characters in output text
+    #
     'num_epochs': 10,  # number of epochs over dataset for training
     'start_epoch': 1,  # epoch to start
     'train_era_step': 1,  # start train step during current era
     'learn_rate': 0.001,  # initial learn rate corresponing top global step 0, or max lr for Adam
-    'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
+    # 'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
     'num_decay_steps': 200,
     'decay_rate': 0.95,
