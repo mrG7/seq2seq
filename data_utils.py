@@ -36,7 +36,69 @@ def slice_video(x, dims, time_window=5):
     return x_
 
 
-def get_batch(paths, options):
+def get_lrw_batch(paths, options):
+    """Returns a data split of the RECOLA dataset, which was saved in tfrecords format.
+    Args:
+        split_name: A train/test/valid split name.
+    Returns:
+        The raw audio examples and the corresponding arousal/valence
+        labels.
+    """
+    shuffle = options['shuffle']
+    batch_size = options['batch_size']
+    num_classes = options['num_classes']
+    crop_size = options['crop_size']
+    horizontal_flip = options['horizontal_flip']
+
+    # root_path = Path(dataset_dir) / split_name
+    # paths = [str(x) for x in root_path.glob('*.tfrecords')]
+
+    filename_queue = tf.train.string_input_producer(paths, shuffle=shuffle)
+
+    reader = tf.TFRecordReader()
+
+    _, serialized_example = reader.read(filename_queue)
+
+    features = tf.parse_single_example(
+        serialized_example,
+        features={
+            'video': tf.FixedLenFeature([], tf.string),
+            'label': tf.FixedLenFeature([], tf.int64)
+        }
+    )
+
+    video = tf.cast(tf.decode_raw(features['video'], tf.uint8), tf.float32) #/ 255.
+    label = features['label']#tf.decode_raw(features['label'], tf.int64)
+
+    # Number of threads should always be one, in order to load samples
+    # sequentially.
+    videos, labels = tf.train.batch(
+        [video, label], batch_size, num_threads=1, capacity=1000, dynamic_pad=True)
+
+    videos = tf.reshape(videos, (batch_size, 29, 118, 118, 1))
+    #labels = tf.reshape(labels, (batch_size,  1))
+    labels = tf.contrib.layers.one_hot_encoding(labels, num_classes)
+
+    # if is_training:
+        # resized_image = tf.image.resize_images(frame, [crop_size, 110])
+        # random cropping
+    if crop_size is not None:
+        videos = tf.random_crop(videos, [batch_size, 29, crop_size, crop_size, 1])
+    # random left right flip
+    if horizontal_flip:
+        sample = tf.random_uniform(shape=[], minval=0, maxval=1, dtype=tf.float32)
+        option = tf.less(sample, 0.5)
+        videos = tf.cond(option,
+                         lambda: tf.map_fn(video_left_right_flip, videos),
+                         lambda: tf.map_fn(tf.identity, videos))
+            # lambda: video_left_right_flip(videos),
+            # lambda: tf.identity(videos))
+    videos = normalize(videos) #tf.cast(videos, tf.float32) * (1. / 255.) - 0.5
+
+    return videos, labels
+
+
+def get_lrs_batch(paths, options):
     """Returns a data split of the RECOLA dataset, which was saved in tfrecords format.
     Args:
         paths: list with paths to data files
@@ -181,10 +243,20 @@ def get_number_of_steps(data_paths, options):
     return number_of_steps_per_epoch, number_of_steps
 
 
-def get_training_data_batch(data_paths, options):
+def get_lrw_training_data_batch(data_paths, options):
+    with tf.variable_scope('training_data'):
+        encoder_inputs, target_labels = get_lrw_batch(data_paths, options)
+        print("shape of encoder_inputs is %s" % encoder_inputs.get_shape)
+        print("shape of target_labels is %s" % target_labels.get_shape)
+        # decoder_inputs_lengths = tf.identity(target_labels_lengths, name="decoder_inputs_lengths")  # + 1
+        # max_input_len = tf.reduce_max(encoder_inputs_lengths, name="max_input_len")
+        return encoder_inputs, target_labels
+
+
+def get_lrs_training_data_batch(data_paths, options):
     with tf.variable_scope('training_data'):
         encoder_inputs, target_labels, decoder_inputs, encoder_inputs_lengths, target_labels_lengths = \
-            get_batch(data_paths, options)
+            get_lrs_batch(data_paths, options)
         print("shape of encoder_inputs is %s" % encoder_inputs.get_shape)
         print("shape of target_labels is %s" % target_labels.get_shape)
         decoder_inputs_lengths = tf.identity(target_labels_lengths, name="decoder_inputs_lengths")  # + 1
@@ -193,18 +265,15 @@ def get_training_data_batch(data_paths, options):
             target_labels_lengths, decoder_inputs_lengths, max_input_len
 
 
-def get_inference_data_batch(data_paths, options):
+def get_lrs_inference_data_batch(data_paths, options):
     # assert restrictions to options due to inference process
     assert options['horizontal_flip'] == False
     with tf.variable_scope('inference_data'):
         encoder_inputs, target_labels, decoder_inputs, encoder_inputs_lengths, target_labels_lengths = \
-            get_batch(data_paths, options)
+            get_lrs_batch(data_paths, options)
         print("shape of encoder_inputs is %s" % encoder_inputs.get_shape)
         print("shape of target_labels is %s" % target_labels.get_shape)
         decoder_inputs_lengths = tf.identity(target_labels_lengths)  # + 1
         max_input_len = tf.reduce_max(encoder_inputs_lengths)
         return encoder_inputs, target_labels, decoder_inputs, encoder_inputs_lengths, \
                target_labels_lengths, decoder_inputs_lengths, max_input_len
-
-
-

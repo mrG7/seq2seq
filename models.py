@@ -4,7 +4,7 @@ from __future__ import print_function
 import tensorflow as tf
 from model_utils import frontend_3D, backend_resnet, conv_backend, stacked_lstm, MultiLayerOutput  # blstm_encoder, lstm_encoder
 from metrics import char_accuracy, flatten_list
-from data_utils import get_data_paths, get_number_of_steps, get_training_data_batch, get_inference_data_batch
+from data_utils import get_data_paths, get_number_of_steps, get_lrs_training_data_batch, get_lrs_inference_data_batch, get_lrw_training_data_batch
 from tqdm import tqdm
 from video2tfrecord3 import decrypt
 from tensorflow.contrib.rnn import LSTMStateTuple
@@ -632,6 +632,3 @@ class Model3(BasicModel):
         # return tuple(init_state2)
 
     # def decoder_output_layer(self):
-
-
-
