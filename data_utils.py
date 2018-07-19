@@ -16,20 +16,22 @@ def video_left_right_flip(video):
 
 
 def normalize(videos):
-    # return videos * (1. / 255.) - 0.5
     return videos/255.
 
 
-def slice_video(x, dims, time_window=5):
-
+def slice_video(inputs, dims, time_window=5):
+    """
+    takes a 5D tensor (video) and returns rolling windows of time_window x frames
+    used as in LRSW paper, visual input to WAS
+    """
     batch_size, max_time, h, w, num_channels = dims
     num_slices = max_time - time_window + 1
-
-    def get_time_window(start_t, x=x, time_window=time_window):
-        x_ = tf.slice(x, [0, start_t, 0, 0, 0], [batch_size, time_window, h, w, num_channels])
+    def get_time_window(start_t, x=inputs, time_window=time_window):
+        x_ = tf.slice(inputs,
+                      [0, start_t, 0, 0, 0],
+                      [batch_size, time_window, h, w, num_channels])
         x_ = tf.transpose(x_, [0, 4, 2, 3, 1])
         return x_
-
     x_ = tf.map_fn(get_time_window, tf.range(num_slices), dtype=tf.float32)
     x_ = tf.reshape(x_, [batch_size, -1, h, w, num_channels*time_window])
     print(x_)
@@ -37,18 +39,17 @@ def slice_video(x, dims, time_window=5):
 
 
 def get_lrw_batch(paths, options):
-    """Returns a data split of the RECOLA dataset, which was saved in tfrecords format.
-    Args:
-        split_name: A train/test/valid split name.
-    Returns:
-        The raw audio examples and the corresponding arousal/valence
-        labels.
+    """
+    Reads data from LRW dataset
+    All videos have the same squence length (29). This is in contrast to the LRS2
+    dataset and versions of the LRW where the target word is extracted
     """
     shuffle = options['shuffle']
     batch_size = options['batch_size']
     num_classes = options['num_classes']
     crop_size = options['crop_size']
     horizontal_flip = options['horizontal_flip']
+    frame_size = options['frame_size']
 
     # root_path = Path(dataset_dir) / split_name
     # paths = [str(x) for x in root_path.glob('*.tfrecords')]
@@ -75,7 +76,7 @@ def get_lrw_batch(paths, options):
     videos, labels = tf.train.batch(
         [video, label], batch_size, num_threads=1, capacity=1000, dynamic_pad=True)
 
-    videos = tf.reshape(videos, (batch_size, 29, 118, 118, 1))
+    videos = tf.reshape(videos, (batch_size, 29, frame_size, frame_size, num_channels))
     #labels = tf.reshape(labels, (batch_size,  1))
     labels = tf.contrib.layers.one_hot_encoding(labels, num_classes)
 
@@ -162,10 +163,6 @@ def get_lrs_batch(paths, options):
                                                       [20, 30, 50, 60, 88, 120, 160, 200, 250],
                                                       num_threads=1, capacity=500, dynamic_pad=True,
                                                       allow_smaller_final_batch=True)
-    # encoder_inputs, target_labels, encoder_inputs_lengths, target_labels_lengths = \
-    #     tf.train.batch([video, label, in_seq_len, out_seq_len], batch_size,
-    #                    num_threads=1, capacity=500, dynamic_pad=True,
-    #                    allow_smaller_final_batch=True)
 
     encoder_inputs = tf.reshape(encoder_inputs, (batch_size,
                                                  tf.reduce_max(encoder_inputs_lengths),
@@ -223,10 +220,22 @@ def get_lrs_batch(paths, options):
     return encoder_inputs, target_labels, decoder_inputs, encoder_inputs_lengths, target_labels_lengths
 
 
+def check_inference_options(options):
+    """
+    check that options relating to data augmentation are valid for inference
+    """
+    assert options['horizontal_flip'] == False, \
+        "No data augmentation should be used during inference, \
+        here random horizontal flip is True"
+    assert options['random_crop'] == False, \
+        "No data augmentation should be used during inference, \
+        here random crop flip is True, while central crops should be used"
+
+
 def get_data_paths(options):
     data_info = pd.read_csv(options['data_root_dir'] + "/Paths/" + options['data_dir'] + "_data_info_tfrecords.csv",
                             dtype={'person_id':str, 'video_id':str})#.sample(frac=1)
-    if 'path' in data_info.columns:
+    if 'path' in data_info.columns:  # true for LRW dataset
         return data_info['path'].tolist()
     print("Total number of train data: %d" % data_info.shape[0])
     data_info['root_dir'] = options['data_root_dir']
@@ -250,8 +259,15 @@ def get_lrw_training_data_batch(data_paths, options):
         encoder_inputs, target_labels = get_lrw_batch(data_paths, options)
         print("shape of encoder_inputs is %s" % encoder_inputs.get_shape)
         print("shape of target_labels is %s" % target_labels.get_shape)
-        # decoder_inputs_lengths = tf.identity(target_labels_lengths, name="decoder_inputs_lengths")  # + 1
-        # max_input_len = tf.reduce_max(encoder_inputs_lengths, name="max_input_len")
+        return encoder_inputs, target_labels
+
+
+def get_lrw_inference_data_batch(data_paths, options):
+    check_inference_options(options)
+    with tf.variable_scope('inference_data'):
+        encoder_inputs, target_labels = get_lrw_batch(data_paths, options)
+        print("shape of encoder_inputs is %s" % encoder_inputs.get_shape)
+        print("shape of target_labels is %s" % target_labels.get_shape)
         return encoder_inputs, target_labels
 
 
@@ -269,7 +285,7 @@ def get_lrs_training_data_batch(data_paths, options):
 
 def get_lrs_inference_data_batch(data_paths, options):
     # assert restrictions to options due to inference process
-    assert options['horizontal_flip'] == False
+    check_inference_options(options)
     with tf.variable_scope('inference_data'):
         encoder_inputs, target_labels, decoder_inputs, encoder_inputs_lengths, target_labels_lengths = \
             get_lrs_batch(data_paths, options)
