@@ -83,7 +83,8 @@ def conv2d_fixed_padding(inputs, filters, kernel_size, strides, data_format):
   return tf.layers.conv2d(
       inputs=inputs, filters=filters, kernel_size=kernel_size, strides=strides,
       padding=('SAME' if strides == 1 else 'VALID'), use_bias=False,
-      kernel_initializer=tf.variance_scaling_initializer(),
+      kernel_initializer=tf.variance_scaling_initializer(
+          scale=1.0, mode='fan_in', distribution='normal', seed=None, dtype=tf.float32),
       data_format=data_format)
 
 
@@ -488,7 +489,7 @@ class ResNet(object):
     if self.num_classes:
         inputs = tf.layers.dense(inputs=inputs, units=self.num_classes)
         inputs = tf.identity(inputs, 'final_dense')
-
+    
     return inputs
 
 

@@ -33,23 +33,33 @@ def frontend_3D(x_input, training=True, name="3d_conv"):
     # First Convolution Layer - Image input, use 64 3D filters of size 5x5x5
     # shape of weights is (dx, dy, dz, #in_filters, #out_filters)
     n = np.prod([5, 7, 7, 64]) # std for weight initialization
-    W_conv1 = tf.get_variable(name="W", initializer=tf.truncated_normal(shape=[5, 7, 7, 1, 64], stddev=np.sqrt(2/n)))
-    b_conv1 = tf.get_variable(name="b", initializer=tf.constant(0.1, shape=[64]))
+    # W_conv1 = tf.get_variable(name="W", initializer=tf.truncated_normal(shape=[5, 7, 7, 1, 64], stddev=np.sqrt(2/n)))
+    # b_conv1 = tf.get_variable(name="b", initializer=tf.constant(0.1, shape=[64]))
     # apply first convolution
-    z_conv1 = tf.nn.conv3d(x_input, W_conv1, strides=[1, 1, 2, 2, 1], padding='SAME') + b_conv1
+    # z_conv1 = tf.nn.conv3d(x_input, W_conv1, strides=[1, 1, 2, 2, 1], padding='SAME') + b_conv1
+    #x_input = tf.layers.conv3d(inputs=x_input, filters=64, kernel_size=[5, 7, 7], strides=[1, 2, 2], padding='same') 
+    x_input = tf.layers.conv3d(inputs=x_input, filters=64, kernel_size=[5, 7, 7], strides=(1, 2, 2), 
+                  padding='same', data_format='channels_last', dilation_rate=(1, 1, 1), activation=None,
+                  use_bias=True, kernel_initializer=tf.keras.initializers.he_normal(seed=None),
+                  bias_initializer=tf.zeros_initializer(), kernel_regularizer=None,
+                  bias_regularizer=None, activity_regularizer=None, kernel_constraint=None,
+                  bias_constraint=None, trainable=True, name=None, reuse=None)
     # apply batch normalization
-    z_conv1_bn = tf.contrib.layers.batch_norm(z_conv1,
-                                              data_format='NHWC',  # Matching the "cnn" tensor shape
-                                              center=True,
-                                              scale=True,
-                                              is_training=training,
-                                              scope='cnn3d-batch_norm')
+    # z_conv1_bn = tf.contrib.layers.batch_norm(z_conv1,
+    #                                           data_format='NHWC',  # Matching the "cnn" tensor shape
+    #                                           center=True,
+    #                                           scale=True,
+    #                                           is_training=training,
+    #                                           scope='cnn3d-batch_norm')
+    x_input = tf.layers.batch_normalization(x_input)
     # apply relu activation
-    h_conv1 = tf.nn.relu(z_conv1_bn)
-    print("shape after 1st convolution is %s" % h_conv1.get_shape)
+    # h_conv1 = tf.nn.relu(z_conv1_bn)
+    # print("shape after 1st convolution is %s" % h_conv1.get_shape)
+    x_input = tf.nn.relu(x_input)
+    print("shape after 1st convolution is %s" % x_input.get_shape)
 
     # apply max pooling
-    h_pool1 = tf.nn.max_pool3d(h_conv1,
+    h_pool1 = tf.nn.max_pool3d(x_input,
                                strides=[1, 1, 2, 2, 1],
                                ksize=[1, 3, 3, 3, 1],
                                padding='SAME')
@@ -63,40 +73,52 @@ def conv_backend(inputs, options):
     print('Temporal convolution backend')
     print('input shape %s' % shape)
     inputs = tf.layers.conv1d(inputs=inputs, filters=2*shape[-1], kernel_size=5, strides=2,
-                              padding='valid',  # 'same'
+                              padding='same',  # 'same'
                               data_format='channels_last', dilation_rate=1, activation=None,
-                              use_bias=True, kernel_initializer=None, bias_initializer=tf.zeros_initializer(),
+                              use_bias=True, kernel_initializer=tf.keras.initializers.he_normal(seed=None), 
+                              bias_initializer=None,
                               kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
                               kernel_constraint=None, bias_constraint=None, trainable=True,
                               name=None, reuse=None)
     # print(inputs.get_shape())
     inputs = tf.layers.batch_normalization(inputs)
     inputs = tf.nn.relu(inputs)
-    inputs = tf.layers.max_pooling1d(inputs=inputs, pool_size=2, strides=2, padding='valid',
+    print('input shape after 1st temporal conv layer %s' % inputs.get_shape().as_list())
+    inputs = tf.layers.max_pooling1d(inputs=inputs, pool_size=2, strides=2, padding='same',
                                      data_format='channels_last', name=None)
+    print('input shape after 1st maxpool layer %s' % inputs.get_shape().as_list())
     inputs = tf.layers.conv1d(inputs=inputs, filters=4 * shape[-1], kernel_size=5, strides=2,
-                              padding='valid',  # 'same'
+                              padding='same',  # 'same'
                               data_format='channels_last', dilation_rate=1, activation=None,
-                              use_bias=True, kernel_initializer=None, bias_initializer=tf.zeros_initializer(),
+                              use_bias=True, kernel_initializer=tf.keras.initializers.he_normal(seed=None),
+                              bias_initializer=None,
                               kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
                               kernel_constraint=None, bias_constraint=None, trainable=True,
                               name=None, reuse=None)
     inputs = tf.layers.batch_normalization(inputs)
     inputs = tf.nn.relu(inputs)
+    print('input shape after 2nd temp conv layer %s' % inputs.get_shape().as_list())
     inputs = tf.reduce_mean(inputs, axis=1)
+    # inputs = tf.reshape(inputs, [shape[0], -1])
+    print('input shape after mean layer %s' % inputs.get_shape().as_list())
+  
     # print(inputs.get_shape())
-    inputs = tf.layers.dense(inputs=inputs, units=shape[-1], activation=None, use_bias=True,
-                             kernel_initializer=None, bias_initializer=tf.zeros_initializer(),
+    inputs = tf.layers.dense(inputs=inputs, units=512, activation=None, use_bias=True,  # shape[-1]
+                             kernel_initializer=tf.keras.initializers.he_normal(seed=None), 
+                             bias_initializer=tf.zeros_initializer(),
                              kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
                              kernel_constraint=None, bias_constraint=None, trainable=True,
                              name=None, reuse=None)
     inputs = tf.layers.batch_normalization(inputs)
     inputs = tf.nn.relu(inputs)
+    print('input shape after 1st linear layer %s' % inputs.get_shape().as_list())
     inputs = tf.layers.dense(inputs=inputs, units=options['num_classes'], activation=None, use_bias=True,
-                             kernel_initializer=None, bias_initializer=tf.zeros_initializer(),
+                             kernel_initializer=tf.keras.initializers.he_normal(seed=None), 
+                             bias_initializer=tf.zeros_initializer(),
                              kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
                              kernel_constraint=None, bias_constraint=None, trainable=True,
                              name=None, reuse=None)
+    print('input shape after 2nd linear layer %s' % inputs.get_shape().as_list())
     return inputs
 
 

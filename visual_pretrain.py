@@ -3,19 +3,19 @@ from models import VisualFeaturePretrainModel
 from tf_utils import set_gpu, start_interactive_session
 # from metrics import char_edit_dist, word_edit_dist
 # import os
-
-set_gpu(0)
+import numpy as np
+# set_gpu(0)
 
 options = {
 
     'mode': "train",  # "train" or "test
     'dataset': "LRW",
-    'data_root_dir': "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/lipreading/Data/LRW/LRW_test",
+    'data_root_dir': "/vol/paramonos/projects/mat10/datasets/LRW",
     #    "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/Data/LRS/lrs_v0",  # root directory of the
     # data. contains Data, Paths, Logs
     'data_dir': "train",  # data paths file is in ~/Paths, named <data_dir> + "_data_info_tfrecords.csv"
 
-    'batch_size': 1,   # number of examples in queue either for training or inference
+    'batch_size': 50,   # number of examples in queue either for training or inference
     'frame_size': 118,  # spatial resolution of frames saved tfrecords files
     'crop_size': 112,  # spatial resolution of inputs to model
     'random_crop': True,  # boolean. if True a random elif False a center crop_size window is cropped
@@ -50,7 +50,7 @@ options = {
     # 'attention_layer_size': None,  # number of hidden units in attention layer,
     # if None, cell output and context vector are concatenated
     # 'norm_attention_layer': True,
-    'reset_global_step': False,
+    'reset_global_step': True,
     # 'num_hidden_out': 128,  # number of hidden units in output fcn
 
     # 'beam_width': 20,  # number of best solutions used in beam decoder
@@ -60,24 +60,24 @@ options = {
     'num_epochs': 10,  # number of epochs over dataset for training
     'start_epoch': 1,  # epoch to start
     'train_era_step': 1,  # start train step during current era
-    'learn_rate': 0.005,  # initial learn rate corresponing top global step 0, or max lr for Adam
+    'learn_rate': 0.003,  # initial learn rate corresponing top global step 0, or max lr for Adam
     # 'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
-    'num_decay_steps': None,
-    'decay_rate': 0.95,
+    'num_decay_steps': 0.25,
+    'decay_rate': 0.94,
 
-    'restore': False,  # boolean. restore model from disk
-    'restore_model': "/data/mat10/MSc_Project/Models/model_2_0state_train/m2_train_0state_ss005_era4_final",  # path to model to restore
+    'restore': True,  # boolean. restore model from disk
+    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model03_epoch5_step1995",  # path to model to restore
 
 
-    'save': False,  # boolean. save model to disk during current era
-    'save_model': "/data/mat10/MSc_Project/Models/model_2_0state_train/m2_train_0state_ss010_era5",
+    'save': True,  # boolean. save model to disk during current era
+    'save_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model04",
     # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
     'num_models_saved': 100,  # total number of models saved
     'save_steps': 5000,  # every how many steps to save model
 
     'save_graph': True,
-    'save_dir': "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/lipreading/Python/graphs/graph5",
+    'save_dir': "/data/mat10/MSc_Project/lipreading/Models/test01",
     'save_summaries': True
           }
 
@@ -93,12 +93,25 @@ model = VisualFeaturePretrainModel(options)
 # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
 sess = start_interactive_session()
+#model.restore_model(sess)
 
 assert options['mode'] == 'train'
-model.train(sess, 100)
+#model.train(sess, 5000)
 
-model.save_graph(sess)
-model.save_summaries(sess)
+
+
+
+
+
+
+
+
+
+
+
+
+# model.save_graph(sess)
+# model.save_summaries(sess)
 
 
 # model.save_model(sess, options['save_model'])

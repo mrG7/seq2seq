@@ -8,7 +8,8 @@ from data_utils import get_data_paths, get_number_of_steps, get_training_data_ba
 from tqdm import tqdm
 from video2tfrecord3 import decrypt
 from tensorflow.contrib.rnn import LSTMStateTuple
-
+from random import shuffle
+import numpy as np
 
 class BasicModel:
     """
@@ -21,7 +22,9 @@ class BasicModel:
 
         self.options = options
         self.data_paths = get_data_paths(self.options)
-
+        shuffle(self.data_paths)
+        self.data_paths = self.data_paths[:100000]
+        
         self.number_of_steps_per_epoch, self.number_of_steps = \
             get_number_of_steps(self.data_paths, self.options)
 
@@ -81,9 +84,9 @@ class BasicModel:
         self.writer.flush()
         # self.writer.close()
 
-    def save_summaries(self, sess, summaries):
-        s, gs = sess.run([summaries, self.global_step])
-        self.writer.add_summary(s, gs)
+    def save_summaries(self, sess, summaries, glob_step):
+        # s, gs = sess.run([summaries, self.global_step])
+        self.writer.add_summary(summaries, glob_step)
         self.writer.flush()
 
 
@@ -108,7 +111,8 @@ class VisualFeaturePretrainModel(BasicModel):
             #     tf.summary.image('sample_image', self.encoder_inputs[0, :, :, :, -1:], max_outputs=50)
 
             self.build_train_graph()
-
+            #if self.options['restore']:
+            #    self.restore_model(sess)
         elif self.options['mode'] == 'test':
             self.encoder_inputs, self.target_labels = get_inference_data_batch(self.data_paths, self.options)
             # self.max_decoding_steps = tf.to_int32(
@@ -149,18 +153,22 @@ class VisualFeaturePretrainModel(BasicModel):
                                               num_classes=num_classes,
                                               training=True,
                                               frontend_3d=False)
-        if self.options['res_features_keep_prob'] != 1.0:
-            self.features_res = tf.layers.dropout(self.features_res,
-                                             rate=1. - self.options['res_features_keep_prob'],
-                                             training=True,
-                                             name='features_res_dropout')
+        # if self.options['res_features_keep_prob'] != 1.0:
+        #     self.features_res = tf.layers.dropout(self.features_res,
+        #                                      rate=1. - self.options['res_features_keep_prob'],
+        #                                      training=True,
+        #                                      name='features_res_dropout')
 
         with tf.variable_scope('temporal_conv'):
             self.logits = conv_backend(self.features_res, self.options)
 
         with tf.variable_scope('train_metrics'):
-            self.train_loss = tf.reduce_mean(
-                tf.losses.softmax_cross_entropy(self.target_labels, self.logits))
+            # self.train_loss = reduce_mean(
+            #     tf.losses.softmax_cross_entropy(self.target_labels, self.logits))
+            self.train_loss = tf.losses.softmax_cross_entropy(onehot_labels=self.target_labels,
+                                  logits=self.logits, weights=1.0, label_smoothing=0, scope=None,
+                                  loss_collection=tf.GraphKeys.LOSSES,
+                                  reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
             correct_prediction = tf.equal(tf.argmax(self.logits, 1),
                                           tf.argmax(self.target_labels, 1))
             self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
@@ -170,14 +178,19 @@ class VisualFeaturePretrainModel(BasicModel):
 
         with tf.variable_scope('optimizer'):
             params = tf.trainable_variables()
+            #self.gradients = tf.gradients(self.train_loss, params)
+
+            max_gradient_norm = tf.constant(1., dtype=tf.float32, name='max_gradient_norm')
             self.gradients = tf.gradients(self.train_loss, params)
+            self.clipped_gradients, _ = tf.clip_by_global_norm(self.gradients, max_gradient_norm)
 
             initial_learn_rate = tf.constant(self.options['learn_rate'], tf.float32)
             learn_rate = tf.train.exponential_decay(learning_rate=initial_learn_rate, global_step=self.global_step,
                                                     decay_steps=self.num_decay_steps, decay_rate=self.options['decay_rate'],
                                                     staircase=True)
             self.optimizer = tf.train.AdamOptimizer(learn_rate)
-            self.update_step = self.optimizer.apply_gradients(zip(self.gradients, params), global_step=self.global_step)
+            #self.optimizer = tf.train.MomentumOptimizer(learn_rate, momentum=0.9)
+            self.update_step = self.optimizer.apply_gradients(zip(self.clipped_gradients, params), global_step=self.global_step)
 
     def train(self, sess, number_of_steps=None, reset_global_step=False):
 
@@ -194,8 +207,8 @@ class VisualFeaturePretrainModel(BasicModel):
             start_epoch = self.options['start_epoch']
             num_epochs = self.options['num_epochs']
 
-        if self.options['restore']:
-            self.restore_model(sess)
+        #if self.options['restore']:
+        #    self.restore_model(sess)
 
         if reset_global_step:
             initial_global_step = self.global_step.assign(0)
@@ -205,22 +218,23 @@ class VisualFeaturePretrainModel(BasicModel):
 
             for step in range(number_of_steps):
 
-                _, _, loss, acc, lr, gs = sess.run(
+                _, _, loss, acc, lr, gs, log_ = sess.run(
                     [self.update_step,
                      self.increment_global_step,
                      self.train_loss,
                      self.accuracy,
-                     self.optimizer._lr_t,  # _learning_rate,  # .optimizer._lr_t,
-                     self.global_step])
+                     self.optimizer._lr_t,
+                     self.global_step,
+                     self.logits])
                 print("%d,%d,%d,%d,%.4f,%.4f,%.8f"
                       % (epoch,
                          self.options['num_epochs'],
                          step,
                          self.number_of_steps_per_epoch,
                          loss, acc, lr))
-
-                if self.options['save_summaries']:
-                    self.writer.add_summary(summ, gs)
+                print([np.argmax(i) for i in log_])
+                # if self.options['save_summaries']:
+                #     self.writer.add_summary(summ, gs)
 
                 if (self.train_era_step % self.options['save_steps'] == 0) and self.options['save']:
                     # print("saving model at global step %d..." % global_step)

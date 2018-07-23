@@ -3,7 +3,7 @@ from __future__ import division
 from __future__ import print_function
 import pandas as pd
 import tensorflow as tf
-
+from random import shuffle
 
 # from pathlib import Path
 # from inception_processing import distort_color
@@ -18,7 +18,7 @@ def video_left_right_flip(video):
 
 
 def normalize(videos):
-    return videos / 255.
+    return (videos - 105.503105) / 45.076492  # / 255.
 
 
 def slice_video(inputs, dims, time_window=5):
@@ -69,18 +69,18 @@ def get_lrw_batch(paths, options):
         serialized_example,
         features={
             'video': tf.FixedLenFeature([], tf.string),
-            'label': tf.FixedLenFeature([], tf.int64)
+            'label': tf.FixedLenFeature([], tf.int64)   # tf.int64
         }
     )
 
     video = tf.cast(tf.decode_raw(features['video'], tf.uint8), tf.float32)  # / 255.
-    label = features['label']  # tf.decode_raw(features['label'], tf.int64)  #
+    label = features['label']
 
     # Number of threads should always be one, in order to load samples
     # sequentially.
     videos, labels = tf.train.batch(
-        [video, label], batch_size, num_threads=1, capacity=1000, dynamic_pad=True)
-
+        [video, label], batch_size, num_threads=1, capacity=500, dynamic_pad=True)
+                     
     videos = tf.reshape(videos, (batch_size, 29, frame_size, frame_size, num_channels))
     # labels = tf.reshape(labels, (batch_size,  1))
     labels = tf.contrib.layers.one_hot_encoding(labels, num_classes)
@@ -256,7 +256,8 @@ def get_data_paths(options):
         data_info['path'] = data_info['root_dir'] + "/Data/" + options['data_dir'] + "/" \
                             + data_info['person_id'] + "/" + data_info['video_id'] + ".tfrecords"
         data_paths = list(data_info['path'])
-
+    if options['shuffle']:
+        shuffle(data_paths)
     return data_paths
 
 
