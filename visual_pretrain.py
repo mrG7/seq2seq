@@ -57,22 +57,21 @@ options = {
     # 'max_in_len': None,  # maximum number of frames in input videos
     # 'max_out_len': None,  # maximum number of characters in output text
     #
-    'num_epochs': 10,  # number of epochs over dataset for training
+    'num_epochs': 30,  # number of epochs over dataset for training
     'start_epoch': 1,  # epoch to start
     'train_era_step': 1,  # start train step during current era
     'learn_rate': 0.003,  # initial learn rate corresponing top global step 0, or max lr for Adam
     # 'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
-    'num_decay_steps': 0.25,
-    'decay_rate': 0.94,
+    'num_decay_steps': 0.5,
+    'decay_rate': 0.955,
 
     'restore': True,  # boolean. restore model from disk
-    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model03_epoch5_step1995",  # path to model to restore
+    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model07_21_251_final",  # path to mlodel to restore
 
 
     'save': True,  # boolean. save model to disk during current era
-    'save_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model04",
-    # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
+    'save_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model08_alldata",   # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
     'num_models_saved': 100,  # total number of models saved
     'save_steps': 5000,  # every how many steps to save model
 
@@ -93,12 +92,12 @@ model = VisualFeaturePretrainModel(options)
 # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
 sess = start_interactive_session()
-#model.restore_model(sess)
+model.restore_model(sess)
 
 assert options['mode'] == 'train'
-#model.train(sess, 5000)
+model.train(sess, reset_global_step=options['reset_global_step'])
 
-
+model.save_summaries(sess, model.merged_summaries)
 
 
 
