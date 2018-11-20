@@ -154,7 +154,7 @@ if __name__ == '__main__':
     save_root_dir = "/vol/paramonos/projects/mat10/datasets/LRW/Data"
     save_paths_dir = "/vol/paramonos/projects/mat10/datasets/LRW/Paths"
     #"/homes/mat10/Desktop/tfrecords_test"
-    data_info_path = ("/vol/paramonos/projects/mat10/datasets/LRW/Paths/train_data_info.csv")
+    data_info_path = ("/vol/paramonos/projects/mat10/datasets/LRW/Paths/val_data_info.csv")
     data_info = pd.read_csv(data_info_path)
     datasets = list(data_info["dataset"].unique())
 
@@ -173,4 +173,4 @@ if __name__ == '__main__':
     tfrecords_paths = pool.map(save_data_from_videos, words_split)
 
     tfrecords_paths = pd.concat(tfrecords_paths)
-    tfrecords_paths.to_csv(save_paths_dir + "/" + "train_data_info_tfrecords.csv", index=False)
+    tfrecords_paths.to_csv(save_paths_dir + "/" + "val_data_info_tfrecords.csv", index=False)

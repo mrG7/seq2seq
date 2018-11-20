@@ -51,7 +51,29 @@ def frontend_3D(x_input, training=True, name="3d_conv"):
     #                                           scale=True,
     #                                           is_training=training,
     #                                           scope='cnn3d-batch_norm')
-    x_input = tf.layers.batch_normalization(x_input)
+    #x_input = tf.layers.batch_normalization(x_input)
+    x_input = tf.layers.batch_normalization(x_input,
+                              axis=-1,
+                              momentum=0.99,
+                              epsilon=0.001,
+                              center=True,
+                              scale=True,
+                              beta_initializer=tf.zeros_initializer(),
+                              gamma_initializer=tf.ones_initializer(),
+                              moving_mean_initializer=tf.zeros_initializer(),
+                              moving_variance_initializer=tf.ones_initializer(),
+                              beta_regularizer=None,
+                              gamma_regularizer=None,
+                              beta_constraint=None,
+                              gamma_constraint=None,
+                              training=training,
+                              trainable=True,
+                              name=None,
+                              reuse=None,
+                              renorm=False,
+                              renorm_clipping=None,
+                              renorm_momentum=0.99,
+                              fused=None)
     # apply relu activation
     # h_conv1 = tf.nn.relu(z_conv1_bn)
     # print("shape after 1st convolution is %s" % h_conv1.get_shape)
@@ -68,7 +90,7 @@ def frontend_3D(x_input, training=True, name="3d_conv"):
     return h_pool1
 
 
-def conv_backend(inputs, options):
+def conv_backend(inputs, options, training=True):
     shape = inputs.get_shape().as_list()
     print('Temporal convolution backend')
     print('input shape %s' % shape)
@@ -81,7 +103,29 @@ def conv_backend(inputs, options):
                               kernel_constraint=None, bias_constraint=None, trainable=True,
                               name=None, reuse=None)
     # print(inputs.get_shape())
-    inputs = tf.layers.batch_normalization(inputs)
+    #inputs = tf.layers.batch_normalization(inputs)
+    inputs = tf.layers.batch_normalization(inputs,
+                              axis=-1,
+                              momentum=0.99,
+                              epsilon=0.001,
+                              center=True,
+                              scale=True,
+                              beta_initializer=tf.zeros_initializer(),
+                              gamma_initializer=tf.ones_initializer(),
+                              moving_mean_initializer=tf.zeros_initializer(),
+                              moving_variance_initializer=tf.ones_initializer(),
+                              beta_regularizer=None,
+                              gamma_regularizer=None,
+                              beta_constraint=None,
+                              gamma_constraint=None,
+                              training=training,
+                              trainable=True,
+                              name=None,
+                              reuse=None,
+                              renorm=False,
+                              renorm_clipping=None,
+                              renorm_momentum=0.99,
+                              fused=None)
     inputs = tf.nn.relu(inputs)
     print('input shape after 1st temporal conv layer %s' % inputs.get_shape().as_list())
     inputs = tf.layers.max_pooling1d(inputs=inputs, pool_size=2, strides=2, padding='same',
@@ -95,7 +139,29 @@ def conv_backend(inputs, options):
                               kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
                               kernel_constraint=None, bias_constraint=None, trainable=True,
                               name=None, reuse=None)
-    inputs = tf.layers.batch_normalization(inputs)
+    #inputs = tf.layers.batch_normalization(inputs)
+    inputs = tf.layers.batch_normalization(inputs,
+                              axis=-1,
+                              momentum=0.99,
+                              epsilon=0.001,
+                              center=True,
+                              scale=True,
+                              beta_initializer=tf.zeros_initializer(),
+                              gamma_initializer=tf.ones_initializer(),
+                              moving_mean_initializer=tf.zeros_initializer(),
+                              moving_variance_initializer=tf.ones_initializer(),
+                              beta_regularizer=None,
+                              gamma_regularizer=None,
+                              beta_constraint=None,
+                              gamma_constraint=None,
+                              training=training,
+                              trainable=True,
+                              name=None,
+                              reuse=None,
+                              renorm=False,
+                              renorm_clipping=None,
+                              renorm_momentum=0.99,
+                              fused=None)
     inputs = tf.nn.relu(inputs)
     print('input shape after 2nd temp conv layer %s' % inputs.get_shape().as_list())
     inputs = tf.reduce_mean(inputs, axis=1)
@@ -109,7 +175,29 @@ def conv_backend(inputs, options):
                              kernel_regularizer=None, bias_regularizer=None, activity_regularizer=None,
                              kernel_constraint=None, bias_constraint=None, trainable=True,
                              name=None, reuse=None)
-    inputs = tf.layers.batch_normalization(inputs)
+    #inputs = tf.layers.batch_normalization(inputs)
+    inputs = tf.layers.batch_normalization(inputs,
+                              axis=-1,
+                              momentum=0.99,
+                              epsilon=0.001,
+                              center=True,
+                              scale=True,
+                              beta_initializer=tf.zeros_initializer(),
+                              gamma_initializer=tf.ones_initializer(),
+                              moving_mean_initializer=tf.zeros_initializer(),
+                              moving_variance_initializer=tf.ones_initializer(),
+                              beta_regularizer=None,
+                              gamma_regularizer=None,
+                              beta_constraint=None,
+                              gamma_constraint=None,
+                              training=training,
+                              trainable=True,
+                              name=None,
+                              reuse=None,
+                              renorm=False,
+                              renorm_clipping=None,
+                              renorm_momentum=0.99,
+                              fused=None)
     inputs = tf.nn.relu(inputs)
     print('input shape after 1st linear layer %s' % inputs.get_shape().as_list())
     inputs = tf.layers.dense(inputs=inputs, units=options['num_classes'], activation=None, use_bias=True,
@@ -169,11 +257,11 @@ def serialize_resnet_output(resnet_out):
     return tf.reshape(resnet_out, (BATCH_SIZE, NUM_FRAMES*NUM_CLASSES))
 
 
-def fully_connected_logits(x_input, out_size, name='fc_logits'):
+def fully_connected_logits(x_input, out_size, activation=tf.nn.relu, name='fc_logits'):
     with tf.name_scope(name):
         # fully connected layer (512 -> 500)
         # predictions = tf.layers.dropout(inputs=x_input, rate=0.5)
-        predictions = tf.layers.dense(inputs=x_input, units=out_size, activation=tf.nn.relu)
+        predictions = tf.layers.dense(inputs=x_input, units=out_size, activation=activation)
         # No Softmax here as this will be accounted for by the loss function
         # predictions = tf.nn.softmax(predictions)
         print("shape of predictions is %s" % predictions.get_shape())
@@ -284,16 +372,46 @@ def blstm_encoder(input_forw, model_options):
     # print("shape of bilstm output is %s" % bilstm_out.get_shape())
     # return bilstm_out
 
-def blstm_2layer(x_input, name="blstm_2layer"):
+def blstm_2layer(x_input, options, name="blstm_2layer"):
+    
     with tf.name_scope(name):
+        """  
+        rnn_layers = [tf.contrib.rnn.LayerNormBasicLSTMCell(options['lstm_back_num_hidden'],
+                                                            forget_bias=1.0,
+                                                            input_size=None,
+                                                            activation=tf.tanh,
+                                                            layer_norm=True,
+                                                            norm_gain=1.0,
+                                                            norm_shift=0.0,
+                                                            dropout_prob_seed=None,
+                                                            reuse=None)
+                      for _ in range(options['lstm_back_num_layers'])]
+        multi_rnn_cell_forw = tf.nn.rnn_cell.MultiRNNCell(rnn_layers)
+        multi_rnn_cell_back = tf.nn.rnn_cell.MultiRNNCell(rnn_layers)
+
+        outputs, hidden_states = tf.nn.bidirectional_dynamic_rnn(
+                                multi_rnn_cell_forw, multi_rnn_cell_back,
+                                x_input, dtype=tf.float32)
+        outputs = tf.concat(outputs, 2)
+        return outputs
+        """  
         # 2-layer BiLSTM
         # dense_out = tf.concat(dense_out, axis=1)
         # Define input for forward and backward LSTM
         dense_out_forw = x_input #tf.squeeze(dense_out, axis=2)
         dense_out_back = tf.reverse(dense_out_forw, axis=[1])
         # create 2 layer LSTMCells
-        # rnn_layers = [tf.nn.rnn_cell.LSTMCell(size) for size in [256, 256]]
-        rnn_layers = [tf.contrib.rnn.LayerNormBasicLSTMCell(size) for size in [256, 256]]
+        rnn_layers = [tf.contrib.rnn.LayerNormBasicLSTMCell(options['lstm_back_num_hidden'],
+                                                            forget_bias=1.0,
+                                                            input_size=None,
+                                                            activation=tf.tanh,
+                                                            layer_norm=True,
+                                                            norm_gain=1.0,
+                                                            norm_shift=0.0,
+                                                            #dropout_keep_prob=dropout_keep_prob,
+                                                            dropout_prob_seed=None,
+                                                            reuse=None) for _ in [1, 2]]
+        # rnn_layers = [tf.contrib.rnn.LSTMCell(size) for size in [256, 256]]
 
         # create a RNN cell composed sequentially of a number of RNNCells
         multi_rnn_cell_forw = tf.nn.rnn_cell.MultiRNNCell(rnn_layers)
@@ -311,12 +429,16 @@ def blstm_2layer(x_input, name="blstm_2layer"):
 
         # get only the last output from lstm
         # lstm_out = tf.transpose(lstm_out, [1, 0, 2])
-        last_forw = tf.gather(outputs_forw, indices=int(outputs_forw.get_shape()[1]) - 1, axis=1)
-        last_back = tf.gather(outputs_back, indices=int(outputs_forw.get_shape()[1]) - 1, axis=1)
-
-        bilstm_out = tf.concat([last_forw, last_back], axis=1)
+        if options['return_last']:  # return the concatenation of the last outputs of forward, backward networks 
+            last_forw = tf.gather(outputs_forw, indices=int(outputs_forw.get_shape()[1]) - 1, axis=1)
+            last_back = tf.gather(outputs_back, indices=int(outputs_forw.get_shape()[1]) - 1, axis=1)
+            bilstm_out = tf.concat([last_forw, last_back], axis=1)
+        else:  # return the concatenation of all outputs of forward, backward networks
+            bilstm_out = tf.concat([outputs_forw, tf.reverse(outputs_back, axis=[1])], axis=-1)
         print("shape of bilstm output is %s" % bilstm_out.get_shape())
+        
         return bilstm_out
+
 
 def lstm_1layer(x_input, size=256, name="lstm_1layer"):
     with tf.name_scope(name):

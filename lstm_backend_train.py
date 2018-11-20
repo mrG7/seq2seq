@@ -4,7 +4,8 @@ from tf_utils import set_gpu, start_interactive_session
 # from metrics import char_edit_dist, word_edit_dist
 # import os
 import numpy as np
-# set_gpu(0)
+
+set_gpu(1)
 
 options = {
 
@@ -14,8 +15,8 @@ options = {
     #    "/home/mat10/Documents/MSc_Machine_Learning/MSc_Project/Data/LRS/lrs_v0",  # root directory of the
     # data. contains Data, Paths, Logs
     'data_dir': "train",  # data paths file is in ~/Paths, named <data_dir> + "_data_info_tfrecords.csv"
-
-    'batch_size': 32,   # number of examples in queue either for training or inference
+    'num_words_in_dataset': 500,  # number of words to train with , default num_classes (500)
+    'batch_size': 64,   # number of examples in queue either for training or inference
     'frame_size': 118,  # spatial resolution of frames saved tfrecords files
     'crop_size': 112,  # spatial resolution of inputs to model
     'random_crop': True,  # boolean. if True a random elif False a center crop_size window is cropped
@@ -35,7 +36,12 @@ options = {
     'resnet_num_features': 512,  # size of resnet features. if not 512 a dense layer is added to
     # match desired feature size
     'res_features_keep_prob': 1.0,  # prob of keeping (not dropping) resnet features before encoder
-
+    'visual_pretrain': False,  # if True adds 1dconv backend else adds lstm backend
+    'lstm_backend_training': True,
+    'end_to_end_training': False,
+    'lstm_back_num_layers': 2,
+    'lstm_back_num_hidden': 256,  # number of hidden units in lstm backend
+    'return_last': False,  # if True return the last LSTM back vector, else use all outputs for predicting word
     # 'encoder_num_layers': 3,  # number of hidden layers in encoder lstm
     # 'encoder_num_hidden': 512,  # number of hidden units in encoder lstm
     # 'encoder_dropout_keep_prob' : 1.0,  # probability of keeping neuron
@@ -50,28 +56,28 @@ options = {
     # 'attention_layer_size': None,  # number of hidden units in attention layer,
     # if None, cell output and context vector are concatenated
     # 'norm_attention_layer': True,
-    'reset_global_step': True,
+    'reset_global_step': False,
     # 'num_hidden_out': 128,  # number of hidden units in output fcn
 
     # 'beam_width': 20,  # number of best solutions used in beam decoder
     # 'max_in_len': None,  # maximum number of frames in input videos
     # 'max_out_len': None,  # maximum number of characters in output text
     #
-    'num_epochs': 1,  # number of epochs over dataset for training
-    'start_epoch': 1,  # epoch to start
+    'num_epochs': 10,  # number of epochs over dataset for training
+    'start_epoch': 3,  # epoch to start
     'train_era_step': 1,  # start train step during current era
-    'learn_rate': 0.0007, # 0.003,  # initial learn rate corresponing top global step 0, or max lr for Adam
+    'learn_rate': 0.0005, # 0.003,  # initial learn rate corresponing top global step 0, or max lr for Adam
     # 'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
     'num_decay_steps': 0.5,
     'decay_rate': 0.955,
 
     'restore': True,  # boolean. restore model from disk
-    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model08_alldata_epoch15_step8205",  # path to mlodel to restore
+    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/visual_pretrain/stage2/lstm_backend_stage2_w500_era7_final",  # lstm_backend_pretrain_w_1_100_era2_final",  # path to mlodel to restore
 
 
-    'save': True,  # boolean. save model to disk during current era
-    'save_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model08_alldata_era2",   # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
+    'save': False,  # boolean. save model to disk during current era
+    'save_model': "/data/mat10/MSc_Project/lipreading/Models/visual_pretrain/stage2/lstm_backend_stage2_w500_era8",   # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
     'num_models_saved': 100,  # total number of models saved
     'save_steps': 2000,  # every how many steps to save model
 
@@ -92,10 +98,23 @@ model = VisualFeaturePretrainModel(options)
 # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 
 sess = start_interactive_session()
-model.restore_model(sess)
+
+
+#variables_to_restore = [var for var in tf.global_variables()
+#                        if var.name.startswith('3dconv')
+#                        or var.name.startswith('resnet')]
+#saver_frontend = tf.train.Saver(variables_to_restore)
+# saver = tf.train.Saver()
+
+#saver_frontend.restore(sess, options['restore_model'])
+
+
+if options['restore']:
+    model.restore_model(sess)
 
 assert options['mode'] == 'train'
-acc = model.train(sess, reset_global_step=options['reset_global_step'])
+model.train(sess, reset_global_step=options['reset_global_step'])
+
 
 # model.save_summaries(sess, model.merged_summaries)
 

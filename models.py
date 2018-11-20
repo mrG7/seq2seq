@@ -2,7 +2,8 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 import tensorflow as tf
-from model_utils import frontend_3D, backend_resnet, conv_backend, stacked_lstm, MultiLayerOutput  # blstm_encoder, lstm_encoder
+from model_utils import frontend_3D, backend_resnet, conv_backend, stacked_lstm, MultiLayerOutput, blstm_2layer, fully_connected_logits
+  # blstm_encoder, lstm_encoder
 from metrics import char_accuracy, flatten_list
 from data_utils import get_data_paths, get_number_of_steps, get_training_data_batch, get_inference_data_batch
 from tqdm import tqdm
@@ -10,6 +11,27 @@ from video2tfrecord3 import decrypt
 from tensorflow.contrib.rnn import LSTMStateTuple
 from random import shuffle
 import numpy as np
+import pandas as pd
+
+
+def tf_repeat(tensor, repeats):
+    """
+    Args:
+
+    input: A Tensor. 1-D or higher.
+    repeats: A list. Number of repeat for each dimension, length must be the same as the number of dimensions in input
+
+    Returns:
+    
+    A Tensor. Has the same type as input. Has the shape of tensor.shape * repeats
+    """
+    with tf.variable_scope("repeat"):
+        expanded_tensor = tf.expand_dims(tensor, -1)
+        multiples = [1] + repeats
+        tiled_tensor = tf.tile(expanded_tensor, multiples = multiples)
+        repeated_tesnor = tf.reshape(tiled_tensor, tf.shape(tensor) * repeats)
+    return repeated_tesnor
+
 
 class BasicModel:
     """
@@ -22,9 +44,16 @@ class BasicModel:
 
         self.options = options
         self.data_paths = get_data_paths(self.options)
-        shuffle(self.data_paths)
-        self.data_paths = self.data_paths[:100000]
-        
+        # shuffle(self.data_paths)
+        # only for LRW visual pretrain model
+        # remove following code for running with LRS dataset
+        if self.options['num_words_in_dataset'] != 500:
+            lrw_words = pd.read_csv("lrw_words.csv", header=None)[:self.options['num_words_in_dataset']]
+            #print(lrw_words.values)
+            self.data_paths = [p for p in self.data_paths if any([word[0] in p for word in lrw_words.values])]
+            print(len(self.data_paths))                                            
+        # self.data_paths[:100000]
+        #print(len(self.data_paths))
         self.number_of_steps_per_epoch, self.number_of_steps = \
             get_number_of_steps(self.data_paths, self.options)
 
@@ -33,12 +62,12 @@ class BasicModel:
         if self.options['mode'] not in ['train', 'test']:
             raise ValueError("options.mode must be either 'train' or 'test'")
 
-        if self.options['save'] or self.options['restore']:
-            self.saver = tf.train.Saver(var_list=tf.global_variables(),
-                                        max_to_keep=self.options['num_models_saved'])
+        #if self.options['save'] or self.options['restore']:
+        #    self.saver = tf.train.Saver(var_list=tf.global_variables(),
+        #                                max_to_keep=self.options['num_models_saved'])
 
-        if self.options['save_graph'] or self.options['save_summaries']:
-            self.writer = tf.summary.FileWriter(self.options['save_dir'])
+        #if self.options['save_graph'] or self.options['save_summaries']:
+        #    self.writer = tf.summary.FileWriter(self.options['save_dir'])
 
     def build_train_graph(self):
         pass
@@ -84,9 +113,9 @@ class BasicModel:
         self.writer.flush()
         # self.writer.close()
 
-    def save_summaries(self, sess, summaries, glob_step):
-        # s, gs = sess.run([summaries, self.global_step])
-        self.writer.add_summary(summaries, glob_step)
+    def save_summaries(self, sess, summaries):
+        s, gs = sess.run([summaries, self.global_step])
+        self.writer.add_summary(s, gs)
         self.writer.flush()
 
 
@@ -124,6 +153,13 @@ class VisualFeaturePretrainModel(BasicModel):
 
         if self.options['save_summaries']:  # does this merge zero summaries? CHECK
             self.merged_summaries = tf.summary.merge_all()
+        
+        if self.options['save_graph'] or self.options['save_summaries']:
+            self.writer = tf.summary.FileWriter(self.options['save_dir'])
+
+        if self.options['save'] or self.options['restore']:
+            self.saver = tf.train.Saver(var_list=tf.global_variables(),
+                                        max_to_keep=self.options['num_models_saved'])
 
     def build_train_graph(self):
 
@@ -159,30 +195,68 @@ class VisualFeaturePretrainModel(BasicModel):
         #                                      training=True,
         #                                      name='features_res_dropout')
 
-        with tf.variable_scope('temporal_conv'):
-            self.logits = conv_backend(self.features_res, self.options)
-
+        if self.options['visual_pretrain']: # add visual pretrain back end
+            with tf.variable_scope('temporal_conv'):
+                self.logits = conv_backend(self.features_res, self.options)
+        else: # add BLSTM backend
+            with tf.variable_scope('blstm_backend'):
+                self.features_res_linear = fully_connected_logits(self.features_res, 
+                                                                  self.options['lstm_back_num_hidden'], 
+                                                                  activation=None)
+                self.lstm_out = blstm_2layer(self.features_res_linear, self.options)
+                
+                if self.options['return_last']:
+                    self.logits = fully_connected_logits(self.lstm_out,
+                                                     self.options['num_classes'], 
+                                                     activation=None)
+                else:
+                    self.lstm_out = tf.reshape(self.lstm_out, (-1, final_size))
+                    self.logits = fully_connected_logits(self.lstm_out, 
+                                                     self.options['num_classes'], 
+                                                     activation=None)
+               
         with tf.variable_scope('train_metrics'):
             # self.train_loss = reduce_mean(
             #     tf.losses.softmax_cross_entropy(self.target_labels, self.logits))
-            self.train_loss = tf.losses.softmax_cross_entropy(onehot_labels=self.target_labels,
-                                  logits=self.logits, weights=1.0, label_smoothing=0, scope=None,
+            if self.options['return_last']:
+                self.onehot_labels = self.target_labels
+                correct_prediction = tf.equal(tf.argmax(self.logits, 1),
+                                              tf.argmax(self.target_labels, 1))
+
+            else:
+                #self.onehot_labels = tf_repeat(self.target_labels, [29])
+                self.onehot_labels = tf.tile(tf.expand_dims(self.target_labels, 1), [1, 29, 1])
+                self.onehot_labels = tf.reshape(self.onehot_labels, (-1, self.options['num_classes']))
+                correct_prediction = tf.equal(tf.argmax(self.logits, 1),
+                                              tf.argmax(self.onehot_labels, 1))
+
+            self.train_loss = tf.losses.softmax_cross_entropy(
+                                  onehot_labels=self.onehot_labels,
+                                  logits=self.logits, 
+                                  weights=1.0, 
+                                  label_smoothing=0, scope=None,
                                   loss_collection=tf.GraphKeys.LOSSES,
                                   reduction=tf.losses.Reduction.SUM_BY_NONZERO_WEIGHTS)
-            correct_prediction = tf.equal(tf.argmax(self.logits, 1),
-                                          tf.argmax(self.target_labels, 1))
+            
+            #correct_prediction = tf.equal(tf.argmax(self.logits, 1),
+            #                              tf.argmax(self.target_labels, 1))
+            
             self.accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
             if self.options['save_summaries']:
                 tf.summary.scalar('loss', self.train_loss)
                 tf.summary.scalar('accuracy', self.accuracy)
 
         with tf.variable_scope('optimizer'):
-            params = tf.trainable_variables()
+            if self.options['end_to_end_training']:
+                params = tf.trainable_variables()
+            elif self.options['lstm_backend_training']:
+                params = [var for var in tf.global_variables()
+                        if (not var.name.startswith('3dconv')) and (not var.name.startswith('resnet'))]
             #self.gradients = tf.gradients(self.train_loss, params)
 
-            max_gradient_norm = tf.constant(1., dtype=tf.float32, name='max_gradient_norm')
+            #max_gradient_norm = tf.constant(1., dtype=tf.float32, name='max_gradient_norm')
             self.gradients = tf.gradients(self.train_loss, params)
-            self.clipped_gradients, _ = tf.clip_by_global_norm(self.gradients, max_gradient_norm)
+            #self.clipped_gradients, _ = tf.clip_by_global_norm(self.gradients, max_gradient_norm)
 
             initial_learn_rate = tf.constant(self.options['learn_rate'], tf.float32)
             learn_rate = tf.train.exponential_decay(learning_rate=initial_learn_rate, global_step=self.global_step,
@@ -190,7 +264,10 @@ class VisualFeaturePretrainModel(BasicModel):
                                                     staircase=True)
             self.optimizer = tf.train.AdamOptimizer(learn_rate)
             #self.optimizer = tf.train.MomentumOptimizer(learn_rate, momentum=0.9)
-            self.update_step = self.optimizer.apply_gradients(zip(self.clipped_gradients, params), global_step=self.global_step)
+            
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                self.update_step = self.optimizer.apply_gradients(zip(self.gradients, params), global_step=self.global_step)
 
     def train(self, sess, number_of_steps=None, reset_global_step=False):
 
@@ -213,29 +290,28 @@ class VisualFeaturePretrainModel(BasicModel):
         if reset_global_step:
             initial_global_step = self.global_step.assign(0)
             sess.run(initial_global_step)
-
+        #accuracies = []
         for epoch in range(start_epoch, start_epoch + num_epochs):
 
             for step in range(number_of_steps):
 
-                _, _, loss, acc, lr, gs, log_ = sess.run(
+                _, _, loss, acc, lr, gs = sess.run(
                     [self.update_step,
                      self.increment_global_step,
                      self.train_loss,
                      self.accuracy,
                      self.optimizer._lr_t,
-                     self.global_step,
-                     self.logits])
+                     self.global_step])
                 print("%d,%d,%d,%d,%.4f,%.4f,%.8f"
                       % (epoch,
                          self.options['num_epochs'],
                          step,
                          self.number_of_steps_per_epoch,
                          loss, acc, lr))
-                print([np.argmax(i) for i in log_])
+                #print([np.argmax(i) for i in log_])
                 # if self.options['save_summaries']:
                 #     self.writer.add_summary(summ, gs)
-
+                #accuracies.append(acc)
                 if (self.train_era_step % self.options['save_steps'] == 0) and self.options['save']:
                     # print("saving model at global step %d..." % global_step)
                     self.save_model(sess=sess, save_path=self.options['save_model'] + "_epoch%d_step%d" % (epoch, step))
@@ -246,12 +322,84 @@ class VisualFeaturePretrainModel(BasicModel):
         # save before closing
         if self.options['save']:
             self.save_model(sess=sess, save_path=self.options['save_model'] + "_final")
+        
+        #return accuracies
 
     def build_inference_graph(self):
-        pass
+        final_size = 512  # must be 512 with current ResNet architecture
+        if self.options['resnet_num_features'] != final_size:
+            print("A dense layer is added to final ResNet layer to match desired number of classes")
+            num_classes = self.options['resnet_num_features']
+        else:
+            num_classes = None
+
+        if self.options['frontend_3d']:
+            with tf.variable_scope('3dconv'):
+                features_3d = frontend_3D(self.encoder_inputs)
+
+            with tf.variable_scope('resnet'):
+                self.features_res = backend_resnet(x_input=features_3d,
+                                              resnet_size=self.options['resnet_size'],
+                                              final_size=final_size,
+                                              num_classes=num_classes,
+                                              training=False,
+                                              frontend_3d=True)
+        else:
+            with tf.variable_scope('resnet'):
+                self.features_res = backend_resnet(x_input=self.encoder_inputs,
+                                              resnet_size=self.options['resnet_size'],
+                                              final_size=final_size,
+                                              num_classes=num_classes,
+                                              training=False,
+                                              frontend_3d=False)
+        # if self.options['res_features_keep_prob'] != 1.0:
+        #     self.features_res = tf.layers.dropout(self.features_res,
+        #                                      rate=1. - self.options['res_features_keep_prob'],
+        #                                      training=True,
+        #                                      name='features_res_dropout')
+
+        if self.options['visual_pretrain']: # add visual pretrain back end
+            with tf.variable_scope('temporal_conv'):
+                self.logits = conv_backend(self.features_res, self.options)
+        else: # add BLSTM backend
+            with tf.variable_scope('blstm_backend'):
+                self.features_res_linear = fully_connected_logits(self.features_res,
+                                                                  self.options['lstm_back_num_hidden'],
+                                                                  activation=None)
+                self.lstm_out = blstm_2layer(self.features_res_linear, self.options)
+
+                if self.options['return_last']:
+                    self.logits = fully_connected_logits(self.lstm_out,
+                                                     self.options['num_classes'],
+                                                     activation=None)
+                else:
+                    self.lstm_out = tf.reshape(self.lstm_out, (-1, final_size))
+                    self.logits = fully_connected_logits(self.lstm_out,
+                                                     self.options['num_classes'],
+                                                     activation=None)
+
+        with tf.variable_scope('train_metrics'):
+            # self.train_loss = reduce_mean(
+            #     tf.losses.softmax_cross_entropy(self.target_labels, self.logits))
+            #self.onehot_labels = tf_repeat(self.target_labels, [29])
+            self.labels = tf.argmax(self.target_labels, 1)
+            self.predictions = tf.argmax(self.logits, -1)
+            #correct_prediction = tf.equal(tf.argmax(self.logits, 1),
+            #                              tf.argmax(self.onehot_labels, 1))
+
 
     def predict(self, sess, num_steps=None):
-        pass
+        if num_steps is None:
+            num_steps = self.number_of_steps_per_epoch
+        labels_ = []
+        predictions_ = []
+        for i in range(num_steps):
+            l_, p_ = sess.run([self.labels, self.predictions])
+            labels_.append(l_)
+            predictions_.append(p_)
+            print("%d, %d" % (i, num_steps))
+        return labels_, predictions_
+
 
 
 
@@ -415,8 +563,10 @@ class Model3(BasicModel):
             # self.optimizer = tf.train.MomentumOptimizer(learn_rate, momentum=0.9)#.minimize(cross_entropy)
             # learn_rate = tf.constant(self.options['learn_rate'], tf.float32)
             self.optimizer = tf.train.AdamOptimizer(learn_rate)
-
-            self.update_step = self.optimizer.apply_gradients(zip(clipped_gradients, params), global_step=self.global_step)
+            
+            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            with tf.control_dependencies(update_ops):
+                self.update_step = self.optimizer.apply_gradients(zip(clipped_gradients, params), global_step=self.global_step)
             self.accuracy, self.accuracy2 = char_accuracy(self.target_labels, decoder_greedy_pred, self.target_labels_lengths)
 
             if self.options['save_summaries']:

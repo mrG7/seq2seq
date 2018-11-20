@@ -4,7 +4,8 @@ from tf_utils import set_gpu, start_interactive_session
 # from metrics import char_edit_dist, word_edit_dist
 # import os
 import numpy as np
-# set_gpu(0)
+
+set_gpu(3)
 
 options = {
 
@@ -15,7 +16,7 @@ options = {
     # data. contains Data, Paths, Logs
     'data_dir': "train",  # data paths file is in ~/Paths, named <data_dir> + "_data_info_tfrecords.csv"
 
-    'batch_size': 32,   # number of examples in queue either for training or inference
+    'batch_size': 10,   # number of examples in queue either for training or inference
     'frame_size': 118,  # spatial resolution of frames saved tfrecords files
     'crop_size': 112,  # spatial resolution of inputs to model
     'random_crop': True,  # boolean. if True a random elif False a center crop_size window is cropped
@@ -35,7 +36,7 @@ options = {
     'resnet_num_features': 512,  # size of resnet features. if not 512 a dense layer is added to
     # match desired feature size
     'res_features_keep_prob': 1.0,  # prob of keeping (not dropping) resnet features before encoder
-
+    'visual_pretrain': True,
     # 'encoder_num_layers': 3,  # number of hidden layers in encoder lstm
     # 'encoder_num_hidden': 512,  # number of hidden units in encoder lstm
     # 'encoder_dropout_keep_prob' : 1.0,  # probability of keeping neuron
@@ -60,24 +61,24 @@ options = {
     'num_epochs': 1,  # number of epochs over dataset for training
     'start_epoch': 1,  # epoch to start
     'train_era_step': 1,  # start train step during current era
-    'learn_rate': 0.0007, # 0.003,  # initial learn rate corresponing top global step 0, or max lr for Adam
+    'learn_rate': 0, # 0.003,  # initial learn rate corresponing top global step 0, or max lr for Adam
     # 'ss_prob': 0.0,  # scheduled sampling probability for training. probability of passing decoder output as next
     # decoder input instead of ground truth
     'num_decay_steps': 0.5,
     'decay_rate': 0.955,
 
     'restore': True,  # boolean. restore model from disk
-    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model08_alldata_epoch15_step8205",  # path to mlodel to restore
+    'restore_model': "/data/mat10/MSc_Project/lipreading/Models/visual_pretrain/visual_pretrain_model1",  # path to mlodel to restore
 
 
-    'save': True,  # boolean. save model to disk during current era
-    'save_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model08_alldata_era2",   # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
+    'save': False,  # boolean. save model to disk during current era
+    'save_model': "/data/mat10/MSc_Project/lipreading/Models/test01/model08_alldata",   # "/home/mat10/Desktop/seq2seq_m2/models/model4",  # name for saved model
     'num_models_saved': 100,  # total number of models saved
-    'save_steps': 2000,  # every how many steps to save model
+    'save_steps': 5000,  # every how many steps to save model
 
     'save_graph': False,
     'save_dir': "/data/mat10/MSc_Project/lipreading/Models/test01",
-    'save_summaries': True
+    'save_summaries': False
           }
 
 
@@ -94,8 +95,8 @@ model = VisualFeaturePretrainModel(options)
 sess = start_interactive_session()
 model.restore_model(sess)
 
-assert options['mode'] == 'train'
-acc = model.train(sess, reset_global_step=options['reset_global_step'])
+#assert options['mode'] == 'train'
+#acc = model.train(sess, reset_global_step=options['reset_global_step'])
 
 # model.save_summaries(sess, model.merged_summaries)
 
